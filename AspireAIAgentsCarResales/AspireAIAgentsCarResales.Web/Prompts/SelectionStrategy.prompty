@@ -1,0 +1,18 @@
+﻿Examine RESPONSE and choose the next participant.
+
+Choose only from these participants:
+- {{{firststage}}}
+- {{{secondstage}}}
+- {{{thirdstage}}}
+
+Always follow these two when selecting the next participant:
+1) After user input, it is {{{firststage}}}'s turn.
+2) After {{{firststage}}}'s, it is {{{secondstage}}}'s turn.
+3) After {{{secondstage}}}'s replies, it's {{{thirdstage}}}'s turn.
+4) Finally, it's {{{fourthstage}}} turn to review and approve the plan.
+5) If the plan is approved, the conversation ends.
+6) If the plan isn't approved, it's {{{firststage}}} turn again.
+
+History:
+{{$history}}
+

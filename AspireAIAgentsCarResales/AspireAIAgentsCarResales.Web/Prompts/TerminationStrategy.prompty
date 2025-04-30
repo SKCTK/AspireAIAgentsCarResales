@@ -1,0 +1,6 @@
+﻿Determine if the report has been approved by FinalReview agent. If so, respond with a single word: yes.
+Otherwise No (without explanation)
+
+History:
+
+{{$history}}

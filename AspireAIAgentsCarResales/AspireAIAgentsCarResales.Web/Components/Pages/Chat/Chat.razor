@@ -1,0 +1,240 @@
+﻿@page "/"  
+@using System.ComponentModel  
+@inject IChatClient ChatClient  
+@inject NavigationManager Nav  
+@inject SemanticSearch Search  
+@inject AspireAIAgentsCarResales.Web.Services.MultiAgents.MultiAgentApiClient MultiAgentApiClient
+@implements IDisposable  
+@using Microsoft.AspNetCore.Hosting
+@using AspireAIAgentsCarResales.Web.Services.Ingestion
+@using Microsoft.SemanticKernel
+@using Microsoft.KernelMemory
+@using Microsoft.KernelMemory.AI
+@using Microsoft.KernelMemory.MemoryStorage.DevTools
+@using System.Diagnostics
+@using UglyToad.PdfPig
+@inject IServiceProvider ServiceProvider
+@inject Kernel SemanticKernel
+
+<div class="header-container" style="display: flex; align-items: center; gap: 10px; position: relative; top: 10px; left: 10px; margin: 10px;">
+    <div class="logo-container">
+        <img src="/lib/pdfjs-dist/dist/web/images/carlogo.png" alt="Car Logo" style="width: 120px; height: 80px;" />
+    </div>
+</div>
+
+<ChatHeader OnNewChat="@ResetConversationAsync" />
+
+<ChatMessageList Messages="@messages" InProgressMessage="@currentResponseMessage">
+    <NoMessagesContent>  
+        <div>To get started, try asking about the car resales from the Office of National Statistics UK open data.
+            When you type in at-sign query, you call the Multiagents to give you a comprehensive report on regional demand, economic impact and competitve market analysis of a car or in the car industry.
+            How These Agents Work Together
+            Regional Demand Agent provides localized insights on consumer trends.
+
+            Economic & Geopolitical Impact Agent contextualizes broader external influences.
+
+            Competitive Market Forecast Agent ensures strategic alignment with market shifts.
+        </div>
+        <ChatCitation File="regionalcarresales.pdf"/>
+        <div class="btn-default upload-button" style="width:250px; margin:10px; margin-left:95px;">
+            <InputFile OnChange="UploadFileSelected" />
+        </div>
+    </NoMessagesContent>  
+</ChatMessageList>  
+
+<div class="chat-container" style="background-color: #FFA500;">
+   <ChatSuggestions OnSelected="@AddUserMessageAsync" @ref="@chatSuggestions" />  
+   <ChatInput OnSend="@AddUserMessageAsync" @ref="@chatInput" />  
+</div>
+
+@code {
+    private IHostingEnvironment _environment;
+
+    private async Task UploadFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File as IBrowserFile;
+        if (file is not null)  
+        {  
+            var uploadPath = Path.Combine("wwwroot", "Uploads", file.Name);  
+            Directory.CreateDirectory(Path.GetDirectoryName(uploadPath)!);  
+
+            await using var stream = file.OpenReadStream();  
+            await using var fileStream = File.Create(uploadPath);  
+            await stream.CopyToAsync(fileStream);  
+
+            await fileStream.DisposeAsync();  
+            await stream.DisposeAsync();  
+
+            _environment = ServiceProvider.GetRequiredService<IHostingEnvironment>();  
+            await DataIngestor.IngestDataAsync(  
+                ServiceProvider,  
+                new PDFDirectorySource(Path.Combine(_environment.WebRootPath, "Uploads"))  
+            );  
+        }
+    }
+}
+
+@code {
+    private const string SystemPrompt = @"  
+       You are an car resales assistant who answers questions about information you retrieve related to car sales and resales in the UK.
+       If user types in @query, you will run SearchMultiAgentAsync, otherwise generally run SearchAsync.
+       You are able to fully check or analyze whole external documents and process them if you can to see if this document is compliant or not.
+       You can analyse any provided snippets or key sections of the report
+
+       You can use the search tool to find relevant information. When you do this, end your  
+       reply with any citations as the source in the special XML format:  
+
+       <citation filename='string' page_number='number'>exact quote here</citation>  
+
+       Always include the citation in your response if there are results.   
+       ";  
+
+    OpenAIConfig openAIConfig = new OpenAIConfig();
+    AzureOpenAIConfig azureOpenAITextConfig = new AzureOpenAIConfig();
+    AzureOpenAIConfig azureOpenAIEmbeddingConfig = new AzureOpenAIConfig();
+
+
+    private readonly ChatOptions chatOptions = new();  
+    private readonly List<ChatMessage> messages = new();  
+    private CancellationTokenSource? currentResponseCancellation;  
+    private ChatMessage? currentResponseMessage;  
+    private ChatInput? chatInput;  
+    private ChatSuggestions? chatSuggestions;
+    private ChatMessage? _userMessage;
+
+    protected override void OnInitialized()  
+    {  
+        messages.Add(new(ChatRole.System, SystemPrompt));  
+        chatOptions.Tools = [AIFunctionFactory.Create(SearchAsync),
+                        AIFunctionFactory.Create(SearchMultiAgentAsync)];
+
+        var embeddingGenerator = ServiceProvider.GetService<IEmbeddingGenerator>();
+
+        if (embeddingGenerator == null)
+        {
+            throw new InvalidOperationException("IEmbeddingGenerator was not registered properly.");
+        }
+
+        // Initialize the embedding generator for the DataUploader and enforce into Semantic Kernel
+
+        var dataUploader = SemanticKernel.Services.GetRequiredService<DataUploader>();
+
+        var dataPath = Path.Combine("wwwroot", "Data");
+
+        // Ensure the filestream is closed properly using a 'using' statement  
+        using (var filestream = new FileStream(dataPath + "\\regionalcarresales.pdf", FileMode.Open))
+        {  
+            var textParagraphs = DocumentReader.ReadParagraphs(  
+                filestream,  
+                dataPath + "\\regionalcarresales.pdf");
+
+            dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-adverts", textParagraphs);  
+        }
+
+    }
+
+    private async Task AddUserMessageAsync(ChatMessage userMessage)  
+    {
+        // Assign the user message to the _userMessage field for later use
+        _userMessage = userMessage;
+        CancelAnyCurrentResponse();  
+
+        // Add the user message to the conversation  
+        messages.Add(userMessage);  
+        chatSuggestions?.Clear();  
+        await chatInput!.FocusAsync();  
+
+        // Stream and display a new response from the IChatClient  
+        var responseText = new Microsoft.Extensions.AI.TextContent("");
+        currentResponseMessage = new ChatMessage(ChatRole.Assistant, [responseText]);  
+        currentResponseCancellation = new();  
+
+        try
+        {
+            await foreach (var update in ChatClient.GetStreamingResponseAsync([.. messages], chatOptions, currentResponseCancellation.Token))
+            {
+                messages.AddMessages(update, filter: c => c is not Microsoft.Extensions.AI.TextContent);
+                responseText.Text += update.Text;
+                ChatMessageItem.NotifyChanged(currentResponseMessage);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Handle cancellation gracefully
+            Console.WriteLine("Streaming response was canceled.");
+        }
+        catch (Exception ex)
+        {
+            // Log or handle other exceptions
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+
+        // Store the final response in the conversation, and begin getting suggestions
+        messages.Add(currentResponseMessage!);
+        currentResponseMessage = null;
+        chatSuggestions?.Update(messages);
+    }  
+
+    private void CancelAnyCurrentResponse()  
+    {  
+        // If a response was cancelled while streaming, include it in the conversation so it's not lost  
+        if (currentResponseMessage is not null)  
+        {  
+            messages.Add(currentResponseMessage);  
+        }  
+
+        currentResponseCancellation?.Cancel();  
+        currentResponseMessage = null;  
+    }  
+
+    private async Task ResetConversationAsync()  
+    {  
+        CancelAnyCurrentResponse();  
+        messages.Clear();  
+        messages.Add(new(ChatRole.System, SystemPrompt));  
+        chatSuggestions?.Clear();  
+        await chatInput!.FocusAsync();  
+    }  
+
+    [Description("Searches and informs about information using a phrase or keyword or an existing file")]  
+    private async Task<IEnumerable<string>> SearchAsync(  
+        [Description("The phrase to search for.")] string searchPhrase,  
+        [Description("If possible, specify the filename to search that file only. If not provided or empty, the search includes all files.")] string? filenameFilter = null)  
+    {  
+        await InvokeAsync(StateHasChanged);  
+        var results = await Search.SearchAsync(searchPhrase, filenameFilter, maxResults: 10);  
+        return results.Select(result =>  
+            $"<result filename=\"{result.FileName}\" page_number=\"{result.PageNumber}\">{result.Text}</result>");  
+    }  
+
+    [Description("When user types in command @query, run the multiagent services to validate an input")]
+    private async Task<IEnumerable<string>> SearchMultiAgentAsync(
+       [Description("If possible, specify the filename to process that file only. If not provided or empty, the search includes all files.")] string? filenameFilter = null)
+    {
+        await InvokeAsync(StateHasChanged);
+
+        // Call the GetMultiAgentResponseAsync method
+        string aiMultiAgentResponses = await MultiAgentApiClient.GetMultiAgentResponseAsync(_userMessage.Contents.Last().ToString());
+        var message = new ChatMessage(ChatRole.Assistant, new Microsoft.Extensions.AI.TextContent(aiMultiAgentResponses).Text);
+        ChatMessageItem.NotifyChanged(message);
+
+        var results = message;
+
+        // Convert the string into a single-element IEnumerable
+        IEnumerable<string> result = new List<string> { aiMultiAgentResponses };
+
+        // // Combine the multi-agent response with search results
+        // IEnumerable<string> combinedResults = searchResults.Aggregate(aiMultiAgentResponses);
+
+        // Wrap the IEnumerable in a Task
+        return await Task.FromResult(result);
+        // return results.Select(result =>
+        //     $"<result filename=\"{result.FileName}\" page_number=\"{result.PageNumber}\">{result.Text}</result>");
+    }
+
+    public void Dispose()  
+        => currentResponseCancellation?.Cancel();
+
+
+
+}
