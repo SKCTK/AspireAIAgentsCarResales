@@ -121,15 +121,118 @@
 
         var dataPath = Path.Combine("wwwroot", "Data");
 
-        // Ensure the filestream is closed properly using a 'using' statement  
-        using (var filestream = new FileStream(dataPath + "\\regionalcarresales.pdf", FileMode.Open))
-        {  
-            var textParagraphs = DocumentReader.ReadParagraphs(  
-                filestream,  
-                dataPath + "\\regionalcarresales.pdf");
+        // // Ensure the filestream is closed properly using a 'using' statement  
+        // using (var filestream = new FileStream(dataPath + "\\all_car_adverts.xlsx", FileMode.Open))
+        // {  
+        //     var textParagraphs = DocumentReader.ReadParagraphs(  
+        //         filestream,  
+        //         dataPath + "\\all_car_adverts.xlsx");
 
-            dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-adverts", textParagraphs);  
-        }
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-adverts", textParagraphs);  
+        // }
+
+        // Load all the car sales and resales csv data
+
+        // using (var filestream = new FileStream(dataPath + "\\audi.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\audi.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-audi", textParagraphs);
+        // }
+
+        // Commented load data store for other cars because of the rate limit issue with S0 data ingestion cost with Azure Open AI services
+
+        // using (var filestream = new FileStream(dataPath + "\\bmw.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\bmw.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-bmw", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\cclass.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\cclass.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-cclass", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\focus.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\focus.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-focus", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\ford.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\ford.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-ford", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\hyundi.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\hyundi.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-hyundi", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\merc.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\merc.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-merc", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\skoda.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\skoda.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-skoda", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\toyota.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\toyota.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-toyota", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\vauxhall.pdf", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\vauxhall.pdf");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-vauxhall", textParagraphs);
+        // }
+
+        // using (var filestream = new FileStream(dataPath + "\\vw.xlsx", FileMode.Open))
+        // {
+        //     var textParagraphs = DocumentReader.ReadParagraphs(
+        //         filestream,
+        //         dataPath + "\\vw.xlsx");
+
+        //     dataUploader.GenerateEmbeddingsAndUpload("regional-carsales-vw", textParagraphs);
+        // }
 
     }
 
