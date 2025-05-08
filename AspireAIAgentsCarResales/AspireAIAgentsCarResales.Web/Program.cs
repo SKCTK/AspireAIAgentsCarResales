@@ -194,10 +194,10 @@ await DataIngestor.IngestDataAsync(
   app.Services,
   new PDFDirectorySource(Path.Combine(builder.Environment.WebRootPath, "Uploads"))
 );
-await DataIngestor.IngestDataAsync(
-   app.Services,
-   new PDFDirectorySource(Path.Combine(builder.Environment.WebRootPath, "Data"))
-);
+//await DataIngestor.IngestDataAsync(
+//   app.Services,
+//   new PDFDirectorySource(Path.Combine(builder.Environment.WebRootPath, "Data"))
+//);
 
 app.Run();
 
